@@ -1,0 +1,254 @@
+{
+  "name": "copilot-chat-manager",
+  "displayName": "Copilot Chat Manager",
+  "description": "Organize, export, and manage GitHub Copilot chat histories",
+  "version": "0.1.1",
+  "publisher": "acidni",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Acidni-LLC/copilot-chat-manager"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Machine Learning"
+  ],
+  "keywords": [
+    "copilot",
+    "chat",
+    "history",
+    "export",
+    "organize"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "copilotChatManager.openDashboard",
+        "title": "Open Dashboard",
+        "category": "Copilot Chat Manager",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "copilotChatManager.exportChat",
+        "title": "Export Current Chat",
+        "category": "Copilot Chat Manager",
+        "icon": "$(export)"
+      },
+      {
+        "command": "copilotChatManager.exportAllChats",
+        "title": "Export All Chats",
+        "category": "Copilot Chat Manager",
+        "icon": "$(archive)"
+      },
+      {
+        "command": "copilotChatManager.importChats",
+        "title": "Import Chats",
+        "category": "Copilot Chat Manager",
+        "icon": "$(import)"
+      },
+      {
+        "command": "copilotChatManager.searchChats",
+        "title": "Search Chats",
+        "category": "Copilot Chat Manager",
+        "icon": "$(search)"
+      },
+      {
+        "command": "copilotChatManager.deleteChat",
+        "title": "Delete Chat",
+        "category": "Copilot Chat Manager",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "copilotChatManager.attachToProject",
+        "title": "Attach Chat to Project",
+        "category": "Copilot Chat Manager",
+        "icon": "$(link)"
+      },
+      {
+        "command": "copilotChatManager.refreshHistory",
+        "title": "Refresh Chat History",
+        "category": "Copilot Chat Manager",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "copilotChatManager.openChat",
+        "title": "Open Chat",
+        "category": "Copilot Chat Manager",
+        "icon": "$(open-preview)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "copilotChatManager",
+          "title": "Copilot Chat Manager",
+          "icon": "resources/chat.svg"
+        }
+      ]
+    },
+    "views": {
+      "copilotChatManager": [
+        {
+          "id": "copilotChatManager.chatHistory",
+          "name": "Chat History",
+          "icon": "$(comment-discussion)"
+        },
+        {
+          "id": "copilotChatManager.workspaces",
+          "name": "By Workspace",
+          "icon": "$(folder)"
+        },
+        {
+          "id": "copilotChatManager.recent",
+          "name": "Recent",
+          "icon": "$(clock)"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "copilotChatManager.chatHistory",
+        "contents": "No chat histories found.\n[Refresh](command:copilotChatManager.refreshHistory)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "copilotChatManager.refreshHistory",
+          "when": "view == copilotChatManager.chatHistory",
+          "group": "navigation"
+        },
+        {
+          "command": "copilotChatManager.searchChats",
+          "when": "view == copilotChatManager.chatHistory",
+          "group": "navigation"
+        },
+        {
+          "command": "copilotChatManager.exportAllChats",
+          "when": "view == copilotChatManager.chatHistory"
+        },
+        {
+          "command": "copilotChatManager.importChats",
+          "when": "view == copilotChatManager.chatHistory"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "copilotChatManager.openChat",
+          "when": "viewItem == chatItem",
+          "group": "inline"
+        },
+        {
+          "command": "copilotChatManager.exportChat",
+          "when": "viewItem == chatItem"
+        },
+        {
+          "command": "copilotChatManager.attachToProject",
+          "when": "viewItem == chatItem"
+        },
+        {
+          "command": "copilotChatManager.deleteChat",
+          "when": "viewItem == chatItem"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "copilotChatManager.openDashboard",
+          "when": "true"
+        },
+        {
+          "command": "copilotChatManager.exportChat",
+          "when": "true"
+        },
+        {
+          "command": "copilotChatManager.exportAllChats",
+          "when": "true"
+        },
+        {
+          "command": "copilotChatManager.importChats",
+          "when": "true"
+        },
+        {
+          "command": "copilotChatManager.searchChats",
+          "when": "true"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Copilot Chat Manager",
+      "properties": {
+        "copilotChatManager.storagePath": {
+          "type": "string",
+          "default": "",
+          "description": "Custom path to VS Code workspace storage (leave empty for default: %APPDATA%/Code/User/workspaceStorage)"
+        },
+        "copilotChatManager.autoOrganize": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically organize chats by workspace"
+        },
+        "copilotChatManager.exportFormat": {
+          "type": "string",
+          "enum": [
+            "json",
+            "markdown",
+            "html"
+          ],
+          "default": "json",
+          "description": "Default export format for chat histories"
+        },
+        "copilotChatManager.showInActivityBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show Copilot Chat Manager in the Activity Bar"
+        },
+        "copilotChatManager.maxRecentChats": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of recent chats to display"
+        },
+        "copilotChatManager.confirmDelete": {
+          "type": "boolean",
+          "default": true,
+          "description": "Confirm before deleting chats"
+        },
+        "copilotChatManager.defaultExportPath": {
+          "type": "string",
+          "default": "",
+          "description": "Default path for exported chats (leave empty for workspace root)"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "version:patch": "npm version patch --no-git-tag-version",
+    "package": "npm run version:patch && vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/uuid": "^9.0.7",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/test-electron": "^2.3.8",
+    "eslint": "^8.55.0",
+    "typescript": "^5.3.2",
+    "@vscode/vsce": "^2.22.0"
+  },
+  "dependencies": {
+    "uuid": "^9.0.0"
+  }
+}
