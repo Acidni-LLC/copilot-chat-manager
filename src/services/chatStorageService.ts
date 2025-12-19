@@ -469,6 +469,8 @@ export class ChatStorageService {
         format: 'json' | 'markdown' | 'html' | 'vscode',
         outputPath: string
     ): Promise<void> {
+        // If exporting a single chat as JSON and we have the original Copilot file path,
+        // copy that file directly to preserve the native session structure and all fields.
         let content: string;
 
         switch (format) {
@@ -508,108 +510,37 @@ export class ChatStorageService {
     }
 
     /**
-     * Convert chats to native VS Code Copilot chat format
-     * This matches the exact format VS Code uses in workspaceStorage chatSessions JSON files
+     * Convert chats to VS Code importable format
+     * Uses the simple format that VS Code's "Chat: Import File" command accepts
      */
     private convertToVSCodeFormat(chats: ChatHistory[]): string {
-        // VS Code expects a single chat session
-        const chat = chats[0];
-        if (!chat) {
-            return JSON.stringify({});
-        }
-
-        const requests: any[] = [];
-        
-        // Group messages into request/response pairs
-        for (let i = 0; i < chat.messages.length; i++) {
-            const msg = chat.messages[i];
-            if (msg.role === 'user') {
-                const requestId = this.generateUUID();
-                const responseId = this.generateUUID();
-                const timestamp = msg.timestamp.getTime();
-                
-                const request: any = {
-                    requestId: `request_${requestId}`,
-                    message: {
-                        text: msg.content,
-                        parts: ""
-                    },
-                    variableData: {
-                        variables: ""
-                    },
-                    response: [],
-                    responseId: `response_${responseId}`,
-                    result: {},
-                    followups: [],
-                    isCanceled: false,
-                    agent: {
-                        extensionId: { value: "GitHub.copilot-chat", _lower: "github.copilot-chat" },
-                        extensionVersion: "0.35.0",
-                        publisherDisplayName: "GitHub",
-                        extensionPublisherId: "GitHub",
-                        extensionDisplayName: "GitHub Copilot Chat",
-                        id: "github.copilot.editsAgent",
-                        description: "Edit files in your workspace in agent mode",
-                        name: "agent",
-                        fullName: "GitHub Copilot",
-                        isDefault: true,
-                        locations: "panel",
-                        modes: "agent"
-                    },
-                    contentReferences: [],
-                    codeCitations: [],
-                    timestamp: timestamp,
-                    modelId: "copilot/gpt-4o"
-                };
-                
-                // Look for the next assistant message as the response
-                if (i + 1 < chat.messages.length && chat.messages[i + 1].role === 'assistant') {
-                    const responseMsg = chat.messages[i + 1];
-                    // Response is an array of streaming events - add the text value
-                    request.response = [
-                        { 
-                            value: responseMsg.content,
-                            supportThemeIcons: false,
-                            supportHtml: false,
-                            baseUri: ""
-                        }
-                    ];
-                    request.result = {
-                        timings: { totalElapsed: 5000 },
-                        metadata: {}
-                    };
-                    request.modelState = {
-                        value: 1,
-                        completedAt: responseMsg.timestamp.getTime()
-                    };
-                    i++; // Skip the response message
-                }
-                
-                requests.push(request);
-            }
-        }
-
-        // Build the full native VS Code format
-        const vscodeFormat = {
-            version: 3,
-            responderUsername: "GitHub Copilot",
-            responderAvatarIconUri: { id: "copilot" },
-            initialLocation: "panel",
-            requests: requests,
-            sessionId: chat.id,
-            creationDate: chat.createdAt.getTime(),
-            isImported: true,
-            lastMessageDate: chat.updatedAt.getTime(),
-            customTitle: chat.firstMessage ? chat.firstMessage.substring(0, 50) : undefined,
-            hasPendingEdits: false,
-            contrib: { chatDynamicVariableModel: [] },
-            attachments: [],
-            mode: { id: "agent", kind: "agent" },
-            inputText: "",
-            selections: []
+        // Build the simple, proven-to-work import format
+        const exportData = {
+            version: "1.0",
+            exportedAt: new Date().toISOString(),
+            sourceExtension: "copilot-chat-manager",
+            chats: chats.map(chat => ({
+                id: chat.id,
+                workspacePath: chat.workspacePath,
+                workspaceName: chat.workspaceName,
+                createdAt: chat.createdAt.toISOString(),
+                updatedAt: chat.updatedAt.toISOString(),
+                firstMessage: chat.firstMessage,
+                lastMessage: chat.lastMessage,
+                messageCount: chat.messageCount,
+                fileSize: chat.fileSize,
+                messages: chat.messages.map(msg => ({
+                    id: msg.id || this.generateUUID(),
+                    role: msg.role,
+                    content: msg.content,
+                    timestamp: msg.timestamp.toISOString()
+                })),
+                tags: chat.tags || [],
+                attachedProject: chat.attachedProject || null
+            }))
         };
 
-        return JSON.stringify(vscodeFormat, null, 2);
+        return JSON.stringify(exportData, null, 2);
     }
 
     /**
