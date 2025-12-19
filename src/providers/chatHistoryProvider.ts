@@ -34,10 +34,15 @@ export class ChatHistoryProvider implements vscode.TreeDataProvider<ChatTreeItem
         }
 
         // Root level - get all chats
-        const chats = await this.storageService.scanAllChatHistories();
+        await this.storageService.scanAllChatHistories();
+        const chats = this.storageService.getAllChats();
         
-        // Sort by most recent first
-        chats.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+        // Sort by most recent first (ensure dates are Date objects)
+        chats.sort((a, b) => {
+            const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt);
+            const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt);
+            return dateB.getTime() - dateA.getTime();
+        });
 
         return chats.map(chat => new ChatTreeItem(chat));
     }
@@ -64,9 +69,10 @@ export class ChatTreeItem extends vscode.TreeItem {
         };
     }
 
-    private formatDate(date: Date): string {
+    private formatDate(date: Date | string): string {
         const now = new Date();
-        const diff = now.getTime() - date.getTime();
+        const dateObj = date instanceof Date ? date : new Date(date);
+        const diff = now.getTime() - dateObj.getTime();
         
         const minutes = Math.floor(diff / 60000);
         const hours = Math.floor(diff / 3600000);
@@ -81,15 +87,17 @@ export class ChatTreeItem extends vscode.TreeItem {
         } else if (days < 7) {
             return `${days}d ago`;
         } else {
-            return date.toLocaleDateString();
+            return dateObj.toLocaleDateString();
         }
     }
 
     private buildTooltip(): vscode.MarkdownString {
         const md = new vscode.MarkdownString();
+        const createdAt = this.chat.createdAt instanceof Date ? this.chat.createdAt : new Date(this.chat.createdAt);
+        const updatedAt = this.chat.updatedAt instanceof Date ? this.chat.updatedAt : new Date(this.chat.updatedAt);
         md.appendMarkdown(`**${this.chat.workspaceName}**\n\n`);
-        md.appendMarkdown(`📅 Created: ${this.chat.createdAt.toLocaleString()}\n\n`);
-        md.appendMarkdown(`🔄 Updated: ${this.chat.updatedAt.toLocaleString()}\n\n`);
+        md.appendMarkdown(`📅 Created: ${createdAt.toLocaleString()}\n\n`);
+        md.appendMarkdown(`🔄 Updated: ${updatedAt.toLocaleString()}\n\n`);
         md.appendMarkdown(`💬 Messages: ${this.chat.messageCount}\n\n`);
         md.appendMarkdown(`---\n\n`);
         md.appendMarkdown(`**Last message:**\n\n${this.chat.lastMessage}`);
@@ -187,9 +195,13 @@ export class RecentChatsProvider implements vscode.TreeDataProvider<ChatTreeItem
     async getChildren(): Promise<ChatTreeItem[]> {
         const chats = this.storageService.getAllChats();
         
-        // Sort by most recent and limit
+        // Sort by most recent and limit (ensure dates are Date objects)
         const recent = chats
-            .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+            .sort((a, b) => {
+                const dateA = a.updatedAt instanceof Date ? a.updatedAt : new Date(a.updatedAt);
+                const dateB = b.updatedAt instanceof Date ? b.updatedAt : new Date(b.updatedAt);
+                return dateB.getTime() - dateA.getTime();
+            })
             .slice(0, this.maxRecent);
 
         return recent.map(chat => new ChatTreeItem(chat));

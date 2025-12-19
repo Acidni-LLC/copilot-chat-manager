@@ -1,0 +1,15 @@
+.vscode/**
+.vscode-test/**
+.git/**
+.github/**
+src/**
+webview/**
+node_modules/**
+out/test/**
+*.vsix
+.gitignore
+tsconfig.json
+*.ts
+*.map
+package-lock.json
+copilot-instructions.md

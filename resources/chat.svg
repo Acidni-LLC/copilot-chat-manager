@@ -1,5 +1,51 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-  <path d="M8 10h8"/>
-  <path d="M8 14h4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <!-- Gradient for X's -->
+    <linearGradient id="xGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4AFF91"/>
+      <stop offset="100%" style="stop-color:#00D084"/>
+    </linearGradient>
+    <!-- Glow effect -->
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="1" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 4 X's -->
+  <!-- Top-left X -->
+  <g filter="url(#glow)">
+    <line x1="8" y1="8" x2="40" y2="40" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+    <line x1="40" y1="8" x2="8" y2="40" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Top-right X -->
+  <g filter="url(#glow)">
+    <line x1="88" y1="8" x2="120" y2="40" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+    <line x1="120" y1="8" x2="88" y2="40" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Bottom-left X -->
+  <g filter="url(#glow)">
+    <line x1="8" y1="88" x2="40" y2="120" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+    <line x1="40" y1="88" x2="8" y2="120" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Bottom-right X -->
+  <g filter="url(#glow)">
+    <line x1="88" y1="88" x2="120" y2="120" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+    <line x1="120" y1="88" x2="88" y2="120" stroke="url(#xGrad)" stroke-width="8" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Center chat bubble -->
+  <path d="M64,42 C82,42 96,52 96,66 C96,80 82,90 64,90 C59,90 54,89 50,86 L38,96 L42,82 C36,78 32,72 32,66 C32,52 46,42 64,42 Z" 
+        fill="#005535" stroke="url(#xGrad)" stroke-width="3"/>
+  
+  <!-- Three dots in chat bubble -->
+  <circle cx="50" cy="66" r="4" fill="url(#xGrad)"/>
+  <circle cx="64" cy="66" r="4" fill="url(#xGrad)"/>
+  <circle cx="78" cy="66" r="4" fill="url(#xGrad)"/>
 </svg>

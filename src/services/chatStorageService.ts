@@ -63,6 +63,17 @@ export class ChatStorageService {
             const cached = this.context.globalState.get<CachedChatMeta[]>('chatMetaCache');
             if (cached) {
                 for (const meta of cached) {
+                    // Convert date strings back to Date objects
+                    if (meta.chat) {
+                        meta.chat.createdAt = new Date(meta.chat.createdAt);
+                        meta.chat.updatedAt = new Date(meta.chat.updatedAt);
+                        if (meta.chat.messages) {
+                            meta.chat.messages = meta.chat.messages.map(m => ({
+                                ...m,
+                                timestamp: new Date(m.timestamp)
+                            }));
+                        }
+                    }
                     this.fileMetaCache.set(meta.filePath, meta);
                     // Also restore chatFilePaths and cachedChats for lazy loading to work
                     if (meta.chat) {
@@ -415,6 +426,18 @@ export class ChatStorageService {
     }
 
     /**
+     * Reload a chat from disk (bypasses cache and reloads full messages)
+     */
+    public async reloadChatFromDisk(id: string): Promise<ChatHistory | null> {
+        // Clear the cached messages and reload
+        const cachedChat = this.cachedChats.get(id);
+        if (cachedChat) {
+            cachedChat.messages = []; // Clear cached messages to force reload
+        }
+        return this.loadFullChat(id);
+    }
+
+    /**
      * Get all cached chats
      */
     public getAllChats(): ChatHistory[] {
@@ -443,7 +466,7 @@ export class ChatStorageService {
      */
     public async exportChats(
         chats: ChatHistory[], 
-        format: 'json' | 'markdown' | 'html',
+        format: 'json' | 'markdown' | 'html' | 'vscode',
         outputPath: string
     ): Promise<void> {
         let content: string;
@@ -454,6 +477,20 @@ export class ChatStorageService {
                 break;
             case 'html':
                 content = this.convertToHtml(chats);
+                break;
+            case 'vscode':
+                // For VS Code format, just copy the original native file!
+                // This is the most reliable way to ensure compatibility
+                if (chats.length === 1) {
+                    const originalPath = this.chatFilePaths.get(chats[0].id);
+                    if (originalPath && fs.existsSync(originalPath)) {
+                        // Copy the original file directly - it's already in native format
+                        await fs.promises.copyFile(originalPath, outputPath);
+                        return;
+                    }
+                }
+                // Fallback: if no original file, create minimal format
+                content = this.convertToVSCodeFormat(chats);
                 break;
             case 'json':
             default:
@@ -468,6 +505,122 @@ export class ChatStorageService {
         }
 
         await fs.promises.writeFile(outputPath, content, 'utf-8');
+    }
+
+    /**
+     * Convert chats to native VS Code Copilot chat format
+     * This matches the exact format VS Code uses in workspaceStorage chatSessions JSON files
+     */
+    private convertToVSCodeFormat(chats: ChatHistory[]): string {
+        // VS Code expects a single chat session
+        const chat = chats[0];
+        if (!chat) {
+            return JSON.stringify({});
+        }
+
+        const requests: any[] = [];
+        
+        // Group messages into request/response pairs
+        for (let i = 0; i < chat.messages.length; i++) {
+            const msg = chat.messages[i];
+            if (msg.role === 'user') {
+                const requestId = this.generateUUID();
+                const responseId = this.generateUUID();
+                const timestamp = msg.timestamp.getTime();
+                
+                const request: any = {
+                    requestId: `request_${requestId}`,
+                    message: {
+                        text: msg.content,
+                        parts: ""
+                    },
+                    variableData: {
+                        variables: ""
+                    },
+                    response: [],
+                    responseId: `response_${responseId}`,
+                    result: {},
+                    followups: [],
+                    isCanceled: false,
+                    agent: {
+                        extensionId: { value: "GitHub.copilot-chat", _lower: "github.copilot-chat" },
+                        extensionVersion: "0.35.0",
+                        publisherDisplayName: "GitHub",
+                        extensionPublisherId: "GitHub",
+                        extensionDisplayName: "GitHub Copilot Chat",
+                        id: "github.copilot.editsAgent",
+                        description: "Edit files in your workspace in agent mode",
+                        name: "agent",
+                        fullName: "GitHub Copilot",
+                        isDefault: true,
+                        locations: "panel",
+                        modes: "agent"
+                    },
+                    contentReferences: [],
+                    codeCitations: [],
+                    timestamp: timestamp,
+                    modelId: "copilot/gpt-4o"
+                };
+                
+                // Look for the next assistant message as the response
+                if (i + 1 < chat.messages.length && chat.messages[i + 1].role === 'assistant') {
+                    const responseMsg = chat.messages[i + 1];
+                    // Response is an array of streaming events - add the text value
+                    request.response = [
+                        { 
+                            value: responseMsg.content,
+                            supportThemeIcons: false,
+                            supportHtml: false,
+                            baseUri: ""
+                        }
+                    ];
+                    request.result = {
+                        timings: { totalElapsed: 5000 },
+                        metadata: {}
+                    };
+                    request.modelState = {
+                        value: 1,
+                        completedAt: responseMsg.timestamp.getTime()
+                    };
+                    i++; // Skip the response message
+                }
+                
+                requests.push(request);
+            }
+        }
+
+        // Build the full native VS Code format
+        const vscodeFormat = {
+            version: 3,
+            responderUsername: "GitHub Copilot",
+            responderAvatarIconUri: { id: "copilot" },
+            initialLocation: "panel",
+            requests: requests,
+            sessionId: chat.id,
+            creationDate: chat.createdAt.getTime(),
+            isImported: true,
+            lastMessageDate: chat.updatedAt.getTime(),
+            customTitle: chat.firstMessage ? chat.firstMessage.substring(0, 50) : undefined,
+            hasPendingEdits: false,
+            contrib: { chatDynamicVariableModel: [] },
+            attachments: [],
+            mode: { id: "agent", kind: "agent" },
+            inputText: "",
+            selections: []
+        };
+
+        return JSON.stringify(vscodeFormat, null, 2);
+    }
+
+    /**
+     * Generate a UUID v4
+     */
+    private generateUUID(): string {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
 
     /**
@@ -488,20 +641,39 @@ export class ChatStorageService {
             // Check if this is our export format (has chats array)
             if (data.chats && Array.isArray(data.chats)) {
                 for (const chat of data.chats) {
-                    if (this.cachedChats.has(chat.id)) {
-                        result.skippedCount++;
-                    } else {
-                        // Convert dates back from strings
-                        chat.createdAt = new Date(chat.createdAt);
-                        chat.updatedAt = new Date(chat.updatedAt);
-                        chat.messages = chat.messages.map((m: any) => ({
-                            ...m,
-                            timestamp: new Date(m.timestamp)
-                        }));
-                        
-                        this.cachedChats.set(chat.id, chat);
-                        result.importedCount++;
+                    try {
+                        if (this.cachedChats.has(chat.id)) {
+                            result.skippedCount++;
+                        } else {
+                            // Convert dates back from strings
+                            chat.createdAt = new Date(chat.createdAt);
+                            chat.updatedAt = new Date(chat.updatedAt);
+                            chat.messages = (chat.messages || []).map((m: any) => ({
+                                ...m,
+                                timestamp: new Date(m.timestamp)
+                            }));
+                            
+                            this.cachedChats.set(chat.id, chat);
+                            result.importedCount++;
+                        }
+                    } catch (chatError: any) {
+                        result.errors.push(`Error importing chat ${chat.id}: ${chatError.message}`);
                     }
+                }
+            }
+            // Check if this is a single chat object (has id and messages)
+            else if (data.id && data.messages && Array.isArray(data.messages)) {
+                if (this.cachedChats.has(data.id)) {
+                    result.skippedCount++;
+                } else {
+                    data.createdAt = new Date(data.createdAt);
+                    data.updatedAt = new Date(data.updatedAt);
+                    data.messages = data.messages.map((m: any) => ({
+                        ...m,
+                        timestamp: new Date(m.timestamp)
+                    }));
+                    this.cachedChats.set(data.id, data);
+                    result.importedCount++;
                 }
             }
             // Check if this is native VS Code Copilot chat format (has sessionId and requests)
@@ -520,13 +692,13 @@ export class ChatStorageService {
                 }
             }
             else {
-                result.errors.push('Invalid chat session data - not a recognized format');
+                result.errors.push(`Invalid chat session data - not a recognized format. Found keys: ${Object.keys(data).join(', ')}`);
                 return result;
             }
 
             result.success = result.importedCount > 0 || result.skippedCount > 0;
         } catch (error: any) {
-            result.errors.push(error.message);
+            result.errors.push(`Parse error: ${error.message}`);
         }
 
         return result;
@@ -655,6 +827,132 @@ export class ChatStorageService {
         // Sort by total matches descending
         results.sort((a, b) => b.totalMatches - a.totalMatches);
         return results;
+    }
+
+    /**
+     * Extract top topics/keywords from a chat
+     * Returns most frequent meaningful words with counts
+     */
+    public async getTopTopics(chatId: string, count: number = 3): Promise<{ word: string; count: number }[]> {
+        const filePath = this.chatFilePaths.get(chatId);
+        if (!filePath) return [];
+
+        try {
+            const content = await fs.promises.readFile(filePath, 'utf-8');
+            return this.extractTopicsWithCounts(content, count);
+        } catch {
+            return [];
+        }
+    }
+
+    /**
+     * Extract topics from text content with counts
+     */
+    private extractTopicsWithCounts(content: string, count: number): { word: string; count: number }[] {
+        // Common stop words to ignore - including code-related terms
+        const stopWords = new Set([
+            // English stop words
+            'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with',
+            'by', 'from', 'as', 'is', 'was', 'are', 'were', 'been', 'be', 'have', 'has', 'had',
+            'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must',
+            'shall', 'can', 'need', 'dare', 'ought', 'used', 'it', 'its', 'this', 'that',
+            'these', 'those', 'i', 'you', 'he', 'she', 'we', 'they', 'what', 'which', 'who',
+            'when', 'where', 'why', 'how', 'all', 'each', 'every', 'both', 'few', 'more',
+            'most', 'other', 'some', 'such', 'no', 'nor', 'not', 'only', 'own', 'same', 'so',
+            'than', 'too', 'very', 'just', 'also', 'now', 'here', 'there', 'then', 'once',
+            'if', 'else', 'elif', 'true', 'false', 'null', 'undefined', 'var', 'let', 'const',
+            'use', 'using', 'make', 'like', 'want', 'know', 'see', 'look', 'think', 'take',
+            'come', 'go', 'say', 'said', 'get', 'got', 'put', 'tell', 'about', 'into', 'over',
+            'after', 'before', 'between', 'under', 'again', 'further', 'while', 'above', 'below',
+            // Code/programming stop words  
+            'function', 'return', 'import', 'export', 'class', 'new', 'try', 'catch', 'throw',
+            'async', 'await', 'public', 'private', 'static', 'void', 'string', 'number', 'boolean',
+            'any', 'type', 'interface', 'extends', 'implements', 'get', 'set', 'value', 'text',
+            'message', 'response', 'request', 'data', 'error', 'result', 'code', 'file', 'path',
+            'name', 'id', 'key', 'item', 'list', 'array', 'object', 'json', 'http', 'https',
+            'www', 'com', 'org', 'net', 'src', 'dist', 'lib', 'bin', 'node', 'modules',
+            // Code structure terms to filter out
+            'startcolumn', 'endcolumn', 'startlinenumber', 'endlinenumber', 'linenumber',
+            'column', 'line', 'start', 'end', 'index', 'offset', 'length', 'size', 'count',
+            'source', 'target', 'origin', 'destination', 'input', 'output', 'param', 'params',
+            'arg', 'args', 'option', 'options', 'config', 'setting', 'settings', 'prop', 'props',
+            'attr', 'attribute', 'element', 'node', 'parent', 'child', 'children', 'sibling',
+            'next', 'prev', 'previous', 'first', 'last', 'current', 'default', 'base', 'root',
+            'uri', 'url', 'href', 'ref', 'refs', 'reference', 'references', 'link', 'links',
+            'context', 'scope', 'state', 'store', 'cache', 'buffer', 'stream', 'chunk',
+            'content', 'contents', 'body', 'header', 'headers', 'footer', 'title', 'label',
+            'description', 'info', 'detail', 'details', 'meta', 'metadata', 'schema', 'model',
+            'view', 'controller', 'service', 'provider', 'factory', 'builder', 'handler',
+            'listener', 'observer', 'callback', 'promise', 'resolve', 'reject', 'then', 'done',
+            'success', 'failure', 'fail', 'failed', 'complete', 'completed', 'pending', 'loading',
+            'loaded', 'ready', 'init', 'initialize', 'setup', 'create', 'update', 'delete', 'remove',
+            'add', 'insert', 'append', 'prepend', 'push', 'pop', 'shift', 'unshift', 'splice',
+            'slice', 'concat', 'join', 'split', 'map', 'filter', 'reduce', 'find', 'foreach',
+            'sort', 'reverse', 'includes', 'indexof', 'keys', 'values', 'entries', 'has',
+            'copilot', 'vscode', 'extension', 'workspace', 'editor', 'document', 'selection',
+            'range', 'position', 'character', 'word', 'token', 'symbol', 'definition',
+            'declaration', 'implementation', 'usage', 'hover', 'completion', 'diagnostic',
+            'repos', 'repo', 'git', 'github', 'commit', 'branch', 'merge', 'pull', 'push'
+        ]);
+
+        // Extract words (4+ chars, alphanumeric, not all digits)
+        const words = content.toLowerCase().match(/\b[a-z][a-z0-9]{3,}\b/g) || [];
+        
+        // Count word frequencies
+        const wordCounts = new Map<string, number>();
+        for (const word of words) {
+            // Skip stop words, short words, and words that look like code identifiers
+            if (!stopWords.has(word) && 
+                word.length >= 4 && 
+                !/^[a-z]+\d+$/.test(word) &&  // Skip things like "item1", "var2"
+                !/^\d/.test(word) &&  // Skip words starting with numbers
+                !word.includes('_')) {  // Skip snake_case identifiers
+                wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+            }
+        }
+
+        // Sort by frequency and return top N with counts
+        return Array.from(wordCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, count)
+            .map(([word, count]) => ({ word, count }));
+    }
+
+    /**
+     * Get global word cloud across all chats (or filtered chats)
+     */
+    public async getGlobalWordCloud(topCount: number = 20, chatIds?: string[]): Promise<{ word: string; count: number }[]> {
+        const wordCounts = new Map<string, number>();
+        
+        // If chatIds provided, filter to those chats only
+        const filesToProcess: string[] = [];
+        if (chatIds && chatIds.length > 0) {
+            for (const chatId of chatIds) {
+                const filePath = this.chatFilePaths.get(chatId);
+                if (filePath) {
+                    filesToProcess.push(filePath);
+                }
+            }
+        } else {
+            filesToProcess.push(...this.chatFilePaths.values());
+        }
+        
+        for (const filePath of filesToProcess) {
+            try {
+                const content = await fs.promises.readFile(filePath, 'utf-8');
+                const topics = this.extractTopicsWithCounts(content, 100); // Get more words per chat
+                for (const topic of topics) {
+                    wordCounts.set(topic.word, (wordCounts.get(topic.word) || 0) + topic.count);
+                }
+            } catch {
+                // Skip unreadable files
+            }
+        }
+
+        return Array.from(wordCounts.entries())
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, topCount)
+            .map(([word, count]) => ({ word, count }));
     }
 
     /**

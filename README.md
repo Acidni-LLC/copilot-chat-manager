@@ -1,12 +1,15 @@
-# GitHub Copilot Chat Manager
+# ACCM - Acidni Copilot Chat Manager
 
-A VS Code extension for managing, organizing, and exporting your GitHub Copilot chat histories.
+![ACCM Logo](resources/icon.png)
+
+A powerful VS Code extension for managing, organizing, searching, and exporting your GitHub Copilot chat histories with word clouds and deep search.
 
 ## Features
 
 ### 📊 Dashboard View
 - View all your Copilot chats in one place
 - See statistics: total chats, messages, and workspaces
+- **Word cloud visualization** of top topics
 - Quick actions for each chat
 
 ### 🗂️ Sidebar Views
@@ -25,8 +28,9 @@ A VS Code extension for managing, organizing, and exporting your GitHub Copilot 
 - Import previously exported chat histories
 - Automatic duplicate detection
 
-### 🔍 Search
+### 🔍 Search & Deep Search
 - Full-text search across all chat messages
+- **Deep search** with word counts and context highlighting
 - Quick navigation to matching chats
 
 ### 🏷️ Project Attachment
@@ -38,7 +42,7 @@ A VS Code extension for managing, organizing, and exporting your GitHub Copilot 
 ### From VS Code Marketplace
 1. Open VS Code
 2. Go to Extensions (Ctrl+Shift+X)
-3. Search for "Copilot Chat Manager"
+3. Search for "ACCM" or "Acidni Copilot Chat Manager"
 4. Click Install
 
 ### From VSIX
@@ -54,12 +58,12 @@ A VS Code extension for managing, organizing, and exporting your GitHub Copilot 
 
 | Command | Description |
 |---------|-------------|
-| `Copilot Chat Manager: Open Dashboard` | Open the main dashboard view |
-| `Copilot Chat Manager: Export Chat` | Export selected chat |
-| `Copilot Chat Manager: Export All Chats` | Export all chat histories |
-| `Copilot Chat Manager: Import Chats` | Import chats from JSON file |
-| `Copilot Chat Manager: Search Chats` | Search across all chats |
-| `Copilot Chat Manager: Refresh History` | Rescan for new chats |
+| `ACCM: Open Dashboard` | Open the main dashboard view |
+| `ACCM: Export Chat` | Export selected chat |
+| `ACCM: Export All Chats` | Export all chat histories |
+| `ACCM: Import Chats` | Import chats from JSON file |
+| `ACCM: Search Chats` | Search across all chats |
+| `ACCM: Refresh History` | Rescan for new chats |
 
 ### Sidebar
 
