@@ -2,8 +2,8 @@
   "name": "copilot-chat-manager",
   "displayName": "ACCM - Acidni Copilot Chat Manager",
   "description": "Organize, export, search, and manage your GitHub Copilot chat histories with word clouds and deep search",
-  "version": "0.1.22",
-  "publisher": "acidni",
+  "version": "0.1.23",
+  "publisher": "AcidniLLC",
   "icon": "resources/icon.png",
   "repository": {
     "type": "git",
