@@ -371,6 +371,24 @@ export class ChatStorageService {
      * Extract response text from various response formats
      */
     private extractResponseText(request: any): string {
+        // Handle array of response items (VS Code native format)
+        if (Array.isArray(request.response)) {
+            const textParts: string[] = [];
+            for (const item of request.response) {
+                // Skip thinking, tool invocations, and other non-text items
+                if (item.kind && item.kind !== 'markdownContent') {
+                    continue;
+                }
+                // Get the text value if present
+                if (item.value && typeof item.value === 'string' && item.value.trim()) {
+                    textParts.push(item.value);
+                }
+            }
+            if (textParts.length > 0) {
+                return textParts.join('\n\n');
+            }
+        }
+        
         // Try different response formats used by Copilot
         if (request.response?.value) {
             return request.response.value;
