@@ -50,9 +50,19 @@ export class ChatHistoryProvider implements vscode.TreeDataProvider<ChatTreeItem
 
 export class ChatTreeItem extends vscode.TreeItem {
     constructor(
-        public readonly chat: ChatHistory
+        public readonly chat: ChatHistory,
+        public readonly isChild: boolean = false
     ) {
         super(chat.workspaceName, vscode.TreeItemCollapsibleState.None);
+        
+        // When this is a child item (under a workspace), show message preview with indent
+        if (isChild) {
+            const preview = chat.firstMessage 
+                ? (chat.firstMessage.length > 35 ? chat.firstMessage.substring(0, 35) + '...' : chat.firstMessage)
+                : 'Chat session';
+            // Add visual indent with arrow to show it's a child
+            this.label = `  ↳ ${preview}`;
+        }
         
         this.description = this.formatDate(chat.updatedAt);
         this.tooltip = this.buildTooltip();
@@ -134,8 +144,8 @@ export class WorkspaceTreeProvider implements vscode.TreeDataProvider<WorkspaceT
         }
 
         if (element instanceof WorkspaceTreeItem) {
-            // Return chats for this workspace
-            return element.chats.map(chat => new ChatTreeItem(chat));
+            // Return chats for this workspace - mark as children so they display differently
+            return element.chats.map(chat => new ChatTreeItem(chat, true));
         }
 
         // Root level - get workspaces
