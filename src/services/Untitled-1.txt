@@ -1,0 +1,10 @@
+// You need a Figma Personal Access Token
+const Figma = require('figma-api');
+const api = new Figma.Api({ personalAccessToken: 'YOUR_TOKEN' });
+
+// Export node as PNG
+const images = await api.getImage('FILE_KEY', {
+  ids: ['NODE_ID'],
+  format: 'png',
+  scale: 2
+});

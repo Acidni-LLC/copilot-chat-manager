@@ -2,7 +2,7 @@
   "name": "copilot-chat-manager",
   "displayName": "ACCM - Acidni Copilot Chat Manager",
   "description": "Organize, export, search, and manage your GitHub Copilot chat histories with word clouds and deep search",
-  "version": "0.1.24",
+  "version": "0.1.27",
   "publisher": "AcidniLLC",
   "icon": "resources/icon.png",
   "repository": {
@@ -16,7 +16,7 @@
   },
   "author": {
     "name": "Acidni LLC",
-    "url": "https://acidni.com"
+    "url": "https://acidni.net"
   },
   "engines": {
     "vscode": "^1.85.0"
@@ -264,11 +264,13 @@
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
     "@vscode/test-electron": "^2.3.8",
+    "@vscode/vsce": "^2.22.0",
     "eslint": "^8.55.0",
-    "typescript": "^5.3.2",
-    "@vscode/vsce": "^2.22.0"
+    "sharp": "^0.34.5",
+    "typescript": "^5.3.2"
   },
   "dependencies": {
+    "figma-api": "^2.1.0-beta",
     "uuid": "^9.0.0"
   }
 }
